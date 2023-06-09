@@ -7,8 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
-// import "@openzeppelin/contracts/utils/Context.sol";
+import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 
 library SafeMath {
     /**
@@ -79,7 +78,7 @@ library AddressUtils {
     }
 }
 
-contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
+contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using AddressUtils for address;
@@ -418,8 +417,14 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
 
     function setMaxPoolAmount(uint256 maxPoolAmount_) public onlyOwner {
         require(maxPoolAmount_ > 0, "FXD: maxPoolAmount cannot be 0");
-        require(maxPoolAmount_ >= minStakeAmount, "FXD: maxPoolAmount should be greater than minStakeAmount");
-        require(maxPoolAmount_ >= maxStakeAmount, "FXD: maxPoolAmount should be greater than maxStakeAmount");
+        require(
+            maxPoolAmount_ >= minStakeAmount,
+            "FXD: maxPoolAmount should be greater than minStakeAmount"
+        );
+        require(
+            maxPoolAmount_ >= maxStakeAmount,
+            "FXD: maxPoolAmount should be greater than maxStakeAmount"
+        );
         uint256 prevValue = maxPoolAmount;
         maxPoolAmount = maxPoolAmount_;
         if (maxPoolAmount > prevValue)
