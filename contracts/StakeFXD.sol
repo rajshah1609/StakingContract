@@ -415,15 +415,9 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
 
     function setMaxPoolAmount(uint256 maxPoolAmount_) public onlyOwner {
         require(maxPoolAmount_ > 0, "FXD: maxPoolAmount cannot be 0");
-        require(
-            maxPoolAmount_ >= minStakeAmount,
-            "FXD: maxPoolAmount should be greater than minStakeAmount"
-        );
-        require(
-            maxPoolAmount_ >= maxStakeAmount,
-            "FXD: maxPoolAmount should be greater than maxStakeAmount"
-        );
-        uint256 prevValue = maxPoolAmount_;
+        require(maxPoolAmount_ >= minStakeAmount, "FXD: maxPoolAmount should be greater than minStakeAmount");
+        require(maxPoolAmount_ >= maxStakeAmount, "FXD: maxPoolAmount should be greater than maxStakeAmount");
+        uint256 prevValue = maxPoolAmount;
         maxPoolAmount = maxPoolAmount_;
         if (maxPoolAmount > prevValue)
             pendingPoolAmount = pendingPoolAmount.add(
