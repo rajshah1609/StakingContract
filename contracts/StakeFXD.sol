@@ -83,20 +83,20 @@ contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using AddressUtils for address;
 
-    uint256 private ONE_DAY = 60; //86400
+    uint256 private ONE_DAY = 86400; //86400
 
     IERC20 token;
     uint256 public totalStaked;
-    uint256 public minStakeAmount = 100 * 10 ** 18;
-    uint256 public maxStakeAmount = 1000 * 10 ** 18;
+    uint256 public minStakeAmount = 5000 * 10 ** 18;
+    uint256 public maxStakeAmount = 25000 * 10 ** 18;
     uint256 public coolOff = ONE_DAY * 7;
     uint256 public interest;
     uint256 public totalRedeemed = 0;
-    uint256 public redeemInterval = 10 * ONE_DAY;
+    uint256 public redeemInterval = 1 * ONE_DAY;
     uint256 public startTime;
     uint256 public maxStakingDays;
     uint256 public expiryTime;
-    uint256 public maxPoolAmount = 10000 * 10 ** 18; //greater than or equal to maxstakeamount
+    uint256 public maxPoolAmount = 25000 * 10 ** 18; //greater than or equal to maxstakeamount
     uint256 public pendingPoolAmount = maxPoolAmount;
 
     uint256 public interestPrecision = 100;
@@ -233,6 +233,7 @@ contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
     }
 
     function unstake() external whenStaked whenNotUnStaked nonReentrant {
+        require(expiryTime <= block.timestamp, "FXD: contract hasn't expired yet");
         uint256 leftoverBalance = _earned(_msgSender());
         Stake memory staker = stakes[_msgSender()];
         staker.unstakedTime = block.timestamp;
@@ -242,7 +243,7 @@ contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
         stakes[_msgSender()] = staker;
 
         totalStaked = totalStaked.sub(staker.stakedAmount);
-        totalStaked = pendingPoolAmount.add(staker.stakedAmount);
+        pendingPoolAmount = pendingPoolAmount.add(staker.stakedAmount);
         (bool exists, uint256 stakerIndex) = getStakerIndex(_msgSender());
         require(exists, "FXD: staker does not exist");
         stakeHolders[stakerIndex] = stakeHolders[stakeHolders.length - 1];
@@ -353,7 +354,7 @@ contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
         require(
             minStakeAmount_ > 0,
             "FXD: minimum stake amount should be greater than 0"
-        );
+        );        
         uint256 prevValue = minStakeAmount;
         minStakeAmount = minStakeAmount_;
         emit MinStakeAmountChanged(prevValue, minStakeAmount);
