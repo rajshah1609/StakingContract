@@ -264,22 +264,22 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
             .div(365);
     }
 
-    function claimEarned() public canRedeemDrip(_msgSender()) returns (bool) {
-        require(stakes[_msgSender()].staked == true, "FXD: not staked");
+    function claimEarned(address claimAddress) public canRedeemDrip(claimAddress) {
+        require(stakes[claimAddress].staked == true, "FXD: not staked");
 
         // update the redeemdate even if earnings are 0
-        uint256 earnings = _earned(_msgSender());
+        uint256 earnings = _earned(claimAddress);
 
         if (earnings > 0) {
-            token.transfer(_msgSender(), earnings);
+            token.transfer(claimAddress, earnings);
         }
 
-        stakes[_msgSender()].totalRedeemed += earnings;
-        stakes[_msgSender()].lastRedeemedAt = block.timestamp;
+        stakes[claimAddress].totalRedeemed += earnings;
+        stakes[claimAddress].lastRedeemedAt = block.timestamp;
 
         totalRedeemed += earnings;
 
-        emit ClaimedRewards(_msgSender(), earnings);
+        emit ClaimedRewards(claimAddress, earnings);
     }
 
     function withdrawStake() public whenUnStaked {
