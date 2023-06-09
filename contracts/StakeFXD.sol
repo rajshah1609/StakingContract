@@ -141,22 +141,22 @@ contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
     address[] public stakeHolders;
 
     modifier whenStaked() {
-        require(stakes[msg.sender].staked == true, "FXD: not staked");
+        require(stakes[_msgSender()].staked == true, "FXD: not staked");
         _;
     }
 
     modifier whenNotStaked() {
-        require(stakes[msg.sender].staked == false, "FXD: already staked");
+        require(stakes[_msgSender()].staked == false, "FXD: already staked");
         _;
     }
 
     modifier whenNotUnStaked() {
-        require(stakes[msg.sender].unstaked == false, "FXD: in unstake period");
+        require(stakes[_msgSender()].unstaked == false, "FXD: in unstake period");
         _;
     }
 
     modifier whenUnStaked() {
-        require(stakes[msg.sender].unstaked == true, "FXD: not un-staked");
+        require(stakes[_msgSender()].unstaked == true, "FXD: not un-staked");
         _;
     }
 
@@ -201,15 +201,15 @@ contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
         require(amount_ >= minStakeAmount, "FXD: invalid amount");
         require(amount_ <= maxStakeAmount, "FXD: invalid amount");
 
-        Stake memory staker = stakes[msg.sender];
+        Stake memory staker = stakes[_msgSender()];
 
         staker.staked = true;
         if (staker.exists == false) {
             staker.exists = true;
-            staker.stakerHolder = msg.sender;
+            staker.stakerHolder = _msgSender();
         }
 
-        stakeHolders.push(msg.sender);
+        stakeHolders.push(_msgSender());
         staker.stakedTime = block.timestamp;
         staker.totalRedeemed = 0;
         if (startTime > 0) staker.lastRedeemedAt = startTime;
@@ -217,34 +217,34 @@ contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
         staker.stakedAmount = amount_;
         staker.originalStakeAmount = amount_;
         staker.balance = 0;
-        stakes[msg.sender] = staker;
+        stakes[_msgSender()] = staker;
 
         totalStaked = totalStaked.add(amount_);
         pendingPoolAmount = pendingPoolAmount.sub(amount_);
 
-        token.safeTransferFrom(msg.sender, address(this), amount_);
+        token.safeTransferFrom(_msgSender(), address(this), amount_);
 
-        emit Staked(msg.sender, amount_);
+        emit Staked(_msgSender(), amount_);
     }
 
     function unstake() public whenStaked whenNotUnStaked {
-        uint256 leftoverBalance = _earned(msg.sender);
-        Stake memory staker = stakes[msg.sender];
+        uint256 leftoverBalance = _earned(_msgSender());
+        Stake memory staker = stakes[_msgSender()];
         staker.unstakedTime = block.timestamp;
         staker.staked = false;
         staker.balance = leftoverBalance;
         staker.unstaked = true;
-        stakes[msg.sender] = staker;
+        stakes[_msgSender()] = staker;
 
         totalStaked = totalStaked.sub(staker.stakedAmount);
         totalStaked = pendingPoolAmount.add(staker.stakedAmount);
-        (bool exists, uint256 stakerIndex) = getStakerIndex(msg.sender);
+        (bool exists, uint256 stakerIndex) = getStakerIndex(_msgSender());
         require(exists, "FXD: staker does not exist");
         stakeHolders[stakerIndex] = stakeHolders[stakeHolders.length - 1];
         delete stakeHolders[stakeHolders.length - 1];
         stakeHolders.pop();
 
-        emit Unstaked(msg.sender, staker.stakedAmount);
+        emit Unstaked(_msgSender(), staker.stakedAmount);
     }
 
     function _earned(
@@ -282,20 +282,20 @@ contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
     }
 
     function withdrawStake() public whenUnStaked {
-        require(canWithdrawStake(msg.sender), "FXD: cannot withdraw yet");
-        Stake memory staker = stakes[msg.sender];
+        require(canWithdrawStake(_msgSender()), "FXD: cannot withdraw yet");
+        Stake memory staker = stakes[_msgSender()];
         uint256 withdrawAmount = staker.stakedAmount;
         uint256 leftoverBalance = staker.balance;
-        token.transfer(msg.sender, withdrawAmount);
-        if (leftoverBalance > 0) token.transfer(msg.sender, leftoverBalance);
+        token.transfer(_msgSender(), withdrawAmount);
+        if (leftoverBalance > 0) token.transfer(_msgSender(), leftoverBalance);
         staker.stakedAmount = 0;
         staker.balance = 0;
         staker.unstaked = false;
         staker.totalRedeemed += leftoverBalance;
         staker.lastRedeemedAt = block.timestamp;
-        stakes[msg.sender] = staker;
+        stakes[_msgSender()] = staker;
         totalRedeemed += leftoverBalance;
-        emit WithdrewStake(msg.sender, withdrawAmount, leftoverBalance);
+        emit WithdrewStake(_msgSender(), withdrawAmount, leftoverBalance);
     }
 
     function nextDripAt(address claimerAddress) public view returns (uint256) {
