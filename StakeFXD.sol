@@ -196,7 +196,12 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
     uint256 public coolOff = ONE_DAY * 7;
     uint256 public interest;
     uint256 public totalRedeemed = 0;
-    uint256 public redeemInterval = 30 * ONE_DAY;
+    uint256 public redeemInterval = 10 * ONE_DAY;
+    uint256 public startTime;
+    uint256 public maxStakingDays;
+    uint256 public expiryTime;
+    uint256 public maxPoolAmount = 10000 * 10**18; //greater than or equal to maxstakeamount
+    uint256 public pendingPoolAmount = maxPoolAmount;
 
     uint256 public interestPrecision = 100;
 
@@ -213,6 +218,10 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
     event CoolOffChanged(uint256 prevValue, uint256 newValue);
     event RedeemIntervalChanged(uint256 prevValue, uint256 newValue);
     event InterestPrecisionChanged(uint256 prevValue, uint256 newValue);
+    event StartTimeChanged(uint256 prevValue, uint256 newValue);
+    event MaxStakingDaysChanged(uint256 prevValue, uint256 newValue);
+    event ExpiryTimeChanged(uint256 prevValue, uint256 newValue);
+    event MaxPoolAmountChanged(uint256 prevValue, uint256 newValue);
 
     event WithdrewTokens(address beneficiary, uint256 amount);
     event WithdrewXdc(address beneficiary, uint256 amount);
@@ -285,24 +294,31 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
 
     
     function stake(uint256 amount_) public whenNotStaked whenNotUnStaked {
+        require(totalStaked + amount_ <= maxPoolAmount, "Exceeds maximum pool value");
         require(amount_ >= minStakeAmount, "FXD: invalid amount");
         require(amount_ <= maxStakeAmount, "FXD: invalid amount");
 
-        stakes[msg.sender].staked = true;
-        if (stakes[msg.sender].exists == false) {
-            stakes[msg.sender].exists = true;
-            stakes[msg.sender].stakerHolder = msg.sender;
+        Stake memory staker = stakes[msg.sender];
+
+        staker.staked = true;
+        if (staker.exists == false) {
+            staker.exists = true;
+            staker.stakerHolder = msg.sender;
         }
 
         stakeHolders.push(msg.sender);
-        stakes[msg.sender].stakedTime = block.timestamp;
-        stakes[msg.sender].totalRedeemed = 0;
-        stakes[msg.sender].lastRedeemedAt = block.timestamp;
-        stakes[msg.sender].stakedAmount = amount_;
-        stakes[msg.sender].originalStakeAmount = amount_;
-        stakes[msg.sender].balance = 0;
+        staker.stakedTime = block.timestamp;
+        staker.totalRedeemed = 0;
+        if(startTime > 0)
+         staker.lastRedeemedAt = startTime;
+        else 
+         staker.lastRedeemedAt = block.timestamp;
+        staker.stakedAmount = amount_;
+        staker.originalStakeAmount = amount_;
+        staker.balance = 0;
 
         totalStaked = totalStaked.add(amount_);
+        pendingPoolAmount = pendingPoolAmount.sub(amount_);
 
         token.safeTransferFrom(msg.sender, address(this), amount_);
 
@@ -311,24 +327,30 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
 
     function unstake() public whenStaked whenNotUnStaked {
         uint256 leftoverBalance = _earned(msg.sender);
-        stakes[msg.sender].unstakedTime = block.timestamp;
-        stakes[msg.sender].staked = false;
-        stakes[msg.sender].balance = leftoverBalance;
-        stakes[msg.sender].unstaked = true;
+        Stake memory staker = stakes[msg.sender];
+        staker.unstakedTime = block.timestamp;
+        staker.staked = false;
+        staker.balance = leftoverBalance;
+        staker.unstaked = true;
 
-        totalStaked = totalStaked.sub(stakes[msg.sender].stakedAmount);
+        totalStaked = totalStaked.sub(staker.stakedAmount);
+        totalStaked = pendingPoolAmount.add(staker.stakedAmount);
         (bool exists, uint256 stakerIndex) = getStakerIndex(msg.sender);
         require(exists, "FXD: staker does not exist");
         stakeHolders[stakerIndex] = stakeHolders[stakeHolders.length - 1];
         delete stakeHolders[stakeHolders.length - 1];
         stakeHolders.pop();
 
-        emit Unstaked(msg.sender, stakes[msg.sender].stakedAmount);
+        emit Unstaked(msg.sender, staker.stakedAmount);
     }
 
     function _earned(address beneficiary_) internal view returns (uint256 earned) {
         if (stakes[beneficiary_].staked == false) return 0;
-        uint256 tenure = (block.timestamp - stakes[beneficiary_].lastRedeemedAt);
+        uint256 tenure;
+        if(block.timestamp > expiryTime)
+        tenure = (expiryTime - stakes[beneficiary_].lastRedeemedAt);
+        else
+        tenure = (block.timestamp - stakes[beneficiary_].lastRedeemedAt);
         earned =
             tenure
                 .div(ONE_DAY)
@@ -358,15 +380,16 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
 
     function withdrawStake() public whenUnStaked {
         require(canWithdrawStake(msg.sender), "FXD: cannot withdraw yet");
-        uint256 withdrawAmount = stakes[msg.sender].stakedAmount;
-        uint256 leftoverBalance = stakes[msg.sender].balance;
+        Stake memory staker = stakes[msg.sender];
+        uint256 withdrawAmount = staker.stakedAmount;
+        uint256 leftoverBalance = staker.balance;
         token.transfer(msg.sender, withdrawAmount);
         if (leftoverBalance > 0) token.transfer(msg.sender, leftoverBalance);
-        // stakes[msg.sender].stakedAmount = 0;
-        stakes[msg.sender].balance = 0;
-        stakes[msg.sender].unstaked = false;
-        stakes[msg.sender].totalRedeemed += leftoverBalance;
-        stakes[msg.sender].lastRedeemedAt = block.timestamp;
+        staker.stakedAmount = 0;
+        staker.balance = 0;
+        staker.unstaked = false;
+        staker.totalRedeemed += leftoverBalance;
+        staker.lastRedeemedAt = block.timestamp;
         totalRedeemed += leftoverBalance;
         emit WithdrewStake(msg.sender, withdrawAmount, leftoverBalance);
     }
@@ -402,11 +425,10 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
     function getNumberOfStakers() public view returns(uint256 numberofStaker) {
         return stakeHolders.length;
     }
-/*
 
-Owner Functionality Starts
-
-     */
+    /*
+        Owner Functionality Starts
+    */
 
     function setMinStakeAmount(uint256 minStakeAmount_) public onlyOwner {
         require(minStakeAmount_ > 0, "FXD: minimum stake amount should be greater than 0");
@@ -445,6 +467,41 @@ Owner Functionality Starts
         uint256 prevValue = interestPrecision;
         interestPrecision = interestPrecision_;
         emit InterestPrecisionChanged(prevValue, interestPrecision);
+    }
+
+    function setStartTime(uint256 startTime_) public onlyOwner{
+        require(maxStakingDays > 0, "FXD: please set max staking days to be greater than 0");
+        require(startTime_ > 0, "FXD: startTime cannot be 0");
+        require(block.timestamp < startTime_, "FXD: startTime must be in the future");
+        uint256 prevValue = startTime;
+        startTime = startTime_;
+        emit StartTimeChanged(prevValue, startTime);
+        prevValue = expiryTime;
+        expiryTime = startTime + (maxStakingDays * ONE_DAY);
+        emit ExpiryTimeChanged(prevValue,expiryTime);
+        for (uint256 i = 0; i < stakeHolders.length; i++) {
+            stakes[stakeHolders[i]].lastRedeemedAt = startTime;
+        }
+    }
+
+    function setMaxStakingDays(uint256 maxStakingDays_) public onlyOwner{
+        require(maxStakingDays_ > 0, "FXD: maxStakingDays cannot be 0");
+        uint256 prevValue = maxStakingDays;
+        maxStakingDays = maxStakingDays_;
+        emit StartTimeChanged(prevValue, maxStakingDays);
+    }
+
+    function setMaxPoolAmount(uint256 maxPoolAmount_) public onlyOwner{
+        require(maxPoolAmount_ > 0, "FXD: maxPoolAmount cannot be 0");
+        require(maxPoolAmount_ >= minStakeAmount, "FXD: maxPoolAmount should be greater than minStakeAmount");
+        require(maxPoolAmount_ >= maxStakeAmount, "FXD: maxPoolAmount should be greater than maxStakeAmount");
+        uint256 prevValue = maxPoolAmount_;
+        maxPoolAmount = maxPoolAmount_;
+        if(maxPoolAmount > prevValue)
+            pendingPoolAmount = pendingPoolAmount.add(maxPoolAmount - prevValue);
+        else 
+            pendingPoolAmount = pendingPoolAmount.add(prevValue - maxPoolAmount);
+        emit MaxPoolAmountChanged(prevValue,maxPoolAmount);
     }
 
     function withdrawTokens(address beneficiary_, uint256 amount_) public onlyOwner {
