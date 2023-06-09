@@ -1,0 +1,23 @@
+{
+  "name": "fxd-staking",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "",
+    "start": ""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "non",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.0",
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "dotenv": "^16.0.3",
+    "ethers": "^5.7.2",
+    "hardhat-deploy": "^0.11.22"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.9.1"
+  }
+}

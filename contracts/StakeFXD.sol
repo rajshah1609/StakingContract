@@ -5,85 +5,10 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 // import "@openzeppelin/contracts/utils/Context.sol";
-
-interface IERC20 {
-    /**
-     * @dev Returns the amount of tokens in existence.
-     */
-    function totalSupply() external view returns (uint256);
-
-    /**
-     * @dev Returns the amount of tokens owned by `account`.
-     */
-    function balanceOf(address account) external view returns (uint256);
-
-    /**
-     * @dev Moves `amount` tokens from the caller's account to `recipient`.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transfer(address recipient, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Returns the remaining number of tokens that `spender` will be
-     * allowed to spend on behalf of `owner` through {transferFrom}. This is
-     * zero by default.
-     *
-     * This value changes when {approve} or {transferFrom} are called.
-     */
-    function allowance(address owner, address spender) external view returns (uint256);
-
-    /**
-     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * ////IMPORTANT: Beware that changing an allowance with this method brings the risk
-     * that someone may use both the old and the new allowance by unfortunate
-     * transaction ordering. One possible solution to mitigate this race
-     * condition is to first reduce the spender's allowance to 0 and set the
-     * desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-     *
-     * Emits an {Approval} event.
-     */
-    function approve(address spender, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Moves `amount` tokens from `sender` to `recipient` using the
-     * allowance mechanism. `amount` is then deducted from the caller's
-     * allowance.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transferFrom(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) external returns (bool);
-
-    function mint(address to, uint256 amount) external;
-
-    /**
-     * @dev Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
-    /**
-     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
-     * a call to {approve}. `value` is the new allowance.
-     */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-}
-
 
 library SafeMath {
     /**
@@ -154,45 +79,17 @@ library AddressUtils {
     }
 }
 
-library SafeERC20 {
-    function safeTransfer(
-        IERC20 _token,
-        address _to,
-        uint256 _value
-    ) internal {
-        require(_token.transfer(_to, _value));
-    }
-
-    function safeTransferFrom(
-        IERC20 _token,
-        address _from,
-        address _to,
-        uint256 _value
-    ) internal {
-        require(_token.transferFrom(_from, _to, _value));
-    }
-
-    function safeApprove(
-        IERC20 _token,
-        address _spender,
-        uint256 _value
-    ) internal {
-        require(_token.approve(_spender, _value));
-    }
-}
-
 contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
-
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using AddressUtils for address;
 
-    uint256 private ONE_DAY = 60;//86400
+    uint256 private ONE_DAY = 60; //86400
 
     IERC20 token;
     uint256 public totalStaked;
-    uint256 public minStakeAmount = 100 * 10**18;
-    uint256 public maxStakeAmount = 1000 * 10**18;
+    uint256 public minStakeAmount = 100 * 10 ** 18;
+    uint256 public maxStakeAmount = 1000 * 10 ** 18;
     uint256 public coolOff = ONE_DAY * 7;
     uint256 public interest;
     uint256 public totalRedeemed = 0;
@@ -200,7 +97,7 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
     uint256 public startTime;
     uint256 public maxStakingDays;
     uint256 public expiryTime;
-    uint256 public maxPoolAmount = 10000 * 10**18; //greater than or equal to maxstakeamount
+    uint256 public maxPoolAmount = 10000 * 10 ** 18; //greater than or equal to maxstakeamount
     uint256 public pendingPoolAmount = maxPoolAmount;
 
     uint256 public interestPrecision = 100;
@@ -226,7 +123,7 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
     event WithdrewTokens(address beneficiary, uint256 amount);
     event WithdrewXdc(address beneficiary, uint256 amount);
 
-    struct Stake {        
+    struct Stake {
         address stakerHolder;
         uint256 stakedAmount;
         bool staked;
@@ -235,11 +132,11 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
         uint256 stakedTime;
         uint256 unstakedTime;
         uint256 totalRedeemed;
-        uint256 lastRedeemedAt;      
+        uint256 lastRedeemedAt;
         uint256 balance;
         uint256 originalStakeAmount;
     }
-    
+
     mapping(address => Stake) public stakes;
     mapping(address => bool) public addressStaked;
     address[] public stakeHolders;
@@ -273,28 +170,35 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
         _;
     }
 
-     function canWithdrawStake(address staker) public view returns (bool) {
+    function canWithdrawStake(address staker) public view returns (bool) {
         require(stakes[staker].exists, "FXD: stakeholder does not exists");
-        require(stakes[staker].staked == false, "FXD: stakeholder still has stake");
+        require(
+            stakes[staker].staked == false,
+            "FXD: stakeholder still has stake"
+        );
         require(stakes[staker].unstaked == true, "FXD: not in unstake period");
         uint256 unstakeTenure = block.timestamp - stakes[staker].unstakedTime;
         return coolOff < unstakeTenure;
     }
 
-    constructor(IERC20 token_,
-        uint256 interest_) {
-        require(address(token_) != address(0),"Token Address cannot be address 0");                
-        token = token_;        
+    constructor(IERC20 token_, uint256 interest_) {
+        require(
+            address(token_) != address(0),
+            "Token Address cannot be address 0"
+        );
+        token = token_;
         interest = interest_;
-    }    
-
-    function transferToken(address to,uint256 amount) external onlyOwner{
-        require(token.transfer(to, amount), "Token transfer failed!");  
     }
 
-    
+    function transferToken(address to, uint256 amount) external onlyOwner {
+        require(token.transfer(to, amount), "Token transfer failed!");
+    }
+
     function stake(uint256 amount_) public whenNotStaked whenNotUnStaked {
-        require(totalStaked + amount_ <= maxPoolAmount, "Exceeds maximum pool value");
+        require(
+            totalStaked + amount_ <= maxPoolAmount,
+            "Exceeds maximum pool value"
+        );
         require(amount_ >= minStakeAmount, "FXD: invalid amount");
         require(amount_ <= maxStakeAmount, "FXD: invalid amount");
 
@@ -309,10 +213,8 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
         stakeHolders.push(msg.sender);
         staker.stakedTime = block.timestamp;
         staker.totalRedeemed = 0;
-        if(startTime > 0)
-         staker.lastRedeemedAt = startTime;
-        else 
-         staker.lastRedeemedAt = block.timestamp;
+        if (startTime > 0) staker.lastRedeemedAt = startTime;
+        else staker.lastRedeemedAt = block.timestamp;
         staker.stakedAmount = amount_;
         staker.originalStakeAmount = amount_;
         staker.balance = 0;
@@ -344,20 +246,20 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
         emit Unstaked(msg.sender, staker.stakedAmount);
     }
 
-    function _earned(address beneficiary_) internal view returns (uint256 earned) {
+    function _earned(
+        address beneficiary_
+    ) internal view returns (uint256 earned) {
         if (stakes[beneficiary_].staked == false) return 0;
         uint256 tenure;
-        if(block.timestamp > expiryTime)
-        tenure = (expiryTime - stakes[beneficiary_].lastRedeemedAt);
-        else
-        tenure = (block.timestamp - stakes[beneficiary_].lastRedeemedAt);
-        earned =
-            tenure
-                .div(ONE_DAY)
-                .mul(stakes[beneficiary_].stakedAmount)
-                .mul(interest.div(interestPrecision))
-                .div(100)
-                .div(365);
+        if (block.timestamp > expiryTime)
+            tenure = (expiryTime - stakes[beneficiary_].lastRedeemedAt);
+        else tenure = (block.timestamp - stakes[beneficiary_].lastRedeemedAt);
+        earned = tenure
+            .div(ONE_DAY)
+            .mul(stakes[beneficiary_].stakedAmount)
+            .mul(interest.div(interestPrecision))
+            .div(100)
+            .div(365);
     }
 
     function claimEarned() public canRedeemDrip(_msgSender()) returns (bool) {
@@ -395,23 +297,31 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
     }
 
     function nextDripAt(address claimerAddress) public view returns (uint256) {
-        require(stakes[claimerAddress].staked == true, "FXD: address has not staked");
+        require(
+            stakes[claimerAddress].staked == true,
+            "FXD: address has not staked"
+        );
         return stakes[claimerAddress].lastRedeemedAt + redeemInterval;
     }
 
     function canWithdrawStakeIn(address staker) public view returns (uint256) {
         require(stakes[staker].exists, "FXD: stakeholder does not exists");
-        require(stakes[staker].staked == false, "FXD: stakeholder still has stake");
+        require(
+            stakes[staker].staked == false,
+            "FXD: stakeholder still has stake"
+        );
         uint256 unstakeTenure = block.timestamp - stakes[staker].unstakedTime;
         if (coolOff < unstakeTenure) return 0;
         return coolOff - unstakeTenure;
     }
 
-  function getAllStakeHolder() public view returns (address[] memory) {
+    function getAllStakeHolder() public view returns (address[] memory) {
         return stakeHolders;
     }
 
-     function getStakerIndex(address staker) public view returns (bool, uint256) {
+    function getStakerIndex(
+        address staker
+    ) public view returns (bool, uint256) {
         for (uint256 i = 0; i < stakeHolders.length; i++) {
             if (stakeHolders[i] == staker) return (true, i);
         }
@@ -422,7 +332,7 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
         earnings = _earned(staker);
     }
 
-    function getNumberOfStakers() public view returns(uint256 numberofStaker) {
+    function getNumberOfStakers() public view returns (uint256 numberofStaker) {
         return stakeHolders.length;
     }
 
@@ -431,14 +341,20 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
     */
 
     function setMinStakeAmount(uint256 minStakeAmount_) public onlyOwner {
-        require(minStakeAmount_ > 0, "FXD: minimum stake amount should be greater than 0");
+        require(
+            minStakeAmount_ > 0,
+            "FXD: minimum stake amount should be greater than 0"
+        );
         uint256 prevValue = minStakeAmount;
         minStakeAmount = minStakeAmount_;
         emit MinStakeAmountChanged(prevValue, minStakeAmount);
     }
 
-     function setMaxStakeAmount(uint256 maxStakeAmount_) public onlyOwner {
-        require(maxStakeAmount_ > 0, "FXD: maximum stake amount should be greater than 0");
+    function setMaxStakeAmount(uint256 maxStakeAmount_) public onlyOwner {
+        require(
+            maxStakeAmount_ > 0,
+            "FXD: maximum stake amount should be greater than 0"
+        );
         uint256 prevValue = maxStakeAmount;
         maxStakeAmount = maxStakeAmount_;
         emit MaxStakeAmountChanged(prevValue, maxStakeAmount);
@@ -469,48 +385,64 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
         emit InterestPrecisionChanged(prevValue, interestPrecision);
     }
 
-    function setStartTime(uint256 startTime_) public onlyOwner{
-        require(maxStakingDays > 0, "FXD: please set max staking days to be greater than 0");
+    function setStartTime(uint256 startTime_) public onlyOwner {
+        require(
+            maxStakingDays > 0,
+            "FXD: please set max staking days to be greater than 0"
+        );
         require(startTime_ > 0, "FXD: startTime cannot be 0");
-        require(block.timestamp < startTime_, "FXD: startTime must be in the future");
+        require(
+            block.timestamp < startTime_,
+            "FXD: startTime must be in the future"
+        );
         uint256 prevValue = startTime;
         startTime = startTime_;
         emit StartTimeChanged(prevValue, startTime);
         prevValue = expiryTime;
         expiryTime = startTime + (maxStakingDays * ONE_DAY);
-        emit ExpiryTimeChanged(prevValue,expiryTime);
+        emit ExpiryTimeChanged(prevValue, expiryTime);
         for (uint256 i = 0; i < stakeHolders.length; i++) {
             stakes[stakeHolders[i]].lastRedeemedAt = startTime;
         }
     }
 
-    function setMaxStakingDays(uint256 maxStakingDays_) public onlyOwner{
+    function setMaxStakingDays(uint256 maxStakingDays_) public onlyOwner {
         require(maxStakingDays_ > 0, "FXD: maxStakingDays cannot be 0");
         uint256 prevValue = maxStakingDays;
         maxStakingDays = maxStakingDays_;
         emit StartTimeChanged(prevValue, maxStakingDays);
     }
 
-    function setMaxPoolAmount(uint256 maxPoolAmount_) public onlyOwner{
+    function setMaxPoolAmount(uint256 maxPoolAmount_) public onlyOwner {
         require(maxPoolAmount_ > 0, "FXD: maxPoolAmount cannot be 0");
         require(maxPoolAmount_ >= minStakeAmount, "FXD: maxPoolAmount should be greater than minStakeAmount");
         require(maxPoolAmount_ >= maxStakeAmount, "FXD: maxPoolAmount should be greater than maxStakeAmount");
         uint256 prevValue = maxPoolAmount;
         maxPoolAmount = maxPoolAmount_;
-        if(maxPoolAmount > prevValue)
-            pendingPoolAmount = pendingPoolAmount.add(maxPoolAmount - prevValue);
-        else 
-            pendingPoolAmount = pendingPoolAmount.add(prevValue - maxPoolAmount);
-        emit MaxPoolAmountChanged(prevValue,maxPoolAmount);
+        if (maxPoolAmount > prevValue)
+            pendingPoolAmount = pendingPoolAmount.add(
+                maxPoolAmount - prevValue
+            );
+        else
+            pendingPoolAmount = pendingPoolAmount.add(
+                prevValue - maxPoolAmount
+            );
+        emit MaxPoolAmountChanged(prevValue, maxPoolAmount);
     }
 
-    function withdrawTokens(address beneficiary_, uint256 amount_) public onlyOwner {
+    function withdrawTokens(
+        address beneficiary_,
+        uint256 amount_
+    ) public onlyOwner {
         require(amount_ > 0, "FXD: token amount has to be greater than 0");
         token.safeTransfer(beneficiary_, amount_);
         emit WithdrewTokens(beneficiary_, amount_);
     }
 
-   function withdrawXdc(address beneficiary_, uint256 amount_) public onlyOwner {
+    function withdrawXdc(
+        address beneficiary_,
+        uint256 amount_
+    ) public onlyOwner {
         require(amount_ > 0, "FXD: xdc amount has to be greater than 0");
         payable(beneficiary_).transfer(amount_);
         emit WithdrewXdc(beneficiary_, amount_);
