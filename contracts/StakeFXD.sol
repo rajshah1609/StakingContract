@@ -218,6 +218,7 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
         staker.stakedAmount = amount_;
         staker.originalStakeAmount = amount_;
         staker.balance = 0;
+        stakes[msg.sender] = staker;
 
         totalStaked = totalStaked.add(amount_);
         pendingPoolAmount = pendingPoolAmount.sub(amount_);
@@ -234,6 +235,7 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
         staker.staked = false;
         staker.balance = leftoverBalance;
         staker.unstaked = true;
+        stakes[msg.sender] = staker;
 
         totalStaked = totalStaked.sub(staker.stakedAmount);
         totalStaked = pendingPoolAmount.add(staker.stakedAmount);
@@ -292,6 +294,7 @@ contract StakeFXD is Pausable, Ownable, ReentrancyGuard {
         staker.unstaked = false;
         staker.totalRedeemed += leftoverBalance;
         staker.lastRedeemedAt = block.timestamp;
+        stakes[msg.sender] = staker;
         totalRedeemed += leftoverBalance;
         emit WithdrewStake(msg.sender, withdrawAmount, leftoverBalance);
     }
