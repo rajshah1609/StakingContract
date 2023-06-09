@@ -151,7 +151,10 @@ contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
     }
 
     modifier whenNotUnStaked() {
-        require(stakes[_msgSender()].unstaked == false, "FXD: in unstake period");
+        require(
+            stakes[_msgSender()].unstaked == false,
+            "FXD: in unstake period"
+        );
         _;
     }
 
@@ -193,7 +196,9 @@ contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
         require(token.transfer(to, amount), "Token transfer failed!");
     }
 
-    function stake(uint256 amount_) public whenNotStaked whenNotUnStaked {
+    function stake(
+        uint256 amount_
+    ) public whenNotStaked whenNotUnStaked nonReentrant {
         require(
             totalStaked + amount_ <= maxPoolAmount,
             "Exceeds maximum pool value"
@@ -227,7 +232,7 @@ contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
         emit Staked(_msgSender(), amount_);
     }
 
-    function unstake() public whenStaked whenNotUnStaked {
+    function unstake() public whenStaked whenNotUnStaked nonReentrant {
         uint256 leftoverBalance = _earned(_msgSender());
         Stake memory staker = stakes[_msgSender()];
         staker.unstakedTime = block.timestamp;
@@ -263,7 +268,9 @@ contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
             .div(365);
     }
 
-    function claimEarned(address claimAddress) public canRedeemDrip(claimAddress) {
+    function claimEarned(
+        address claimAddress
+    ) public canRedeemDrip(claimAddress) {
         require(stakes[claimAddress].staked == true, "FXD: not staked");
 
         // update the redeemdate even if earnings are 0
