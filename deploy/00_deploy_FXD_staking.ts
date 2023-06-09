@@ -21,7 +21,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     await deploy("StakeFXD", {
         from: deployer,
         log: true,
-        args: [token, interest]
+        args: [token, interest],
+        proxy:{
+            proxyContract: "transpa"
+        }
     });
 
 };
