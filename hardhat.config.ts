@@ -7,18 +7,16 @@ import * as dotenv from "dotenv";
 
 dotenv.config();
 
-import "./tasks"
 
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 const privateKey =
   process.env.PRIVATE_KEY_1;
 const privateKey2 = process.env.PRIVATE_KEY_2;
-const ertherScanApiKey = process.env.ETHER_SCAN_API_KEY as string;
 
 const config: HardhatUserConfig = {
   solidity: "0.8.17",
-  defaultNetwork: "anvil",
+  defaultNetwork: "hardhat",
   networks: {
     hardhat: {
       chainId: 1337,
@@ -32,6 +30,11 @@ const config: HardhatUserConfig = {
     xdc: {
       url: "https://rpc.xdcrpc.com",
       chainId: 50,
+      accounts: [`${privateKey}`, `${privateKey2}`],
+    },
+    apothem: {
+      url: "https://apothem.xdcrpc.com	",
+      chainId: 51,
       accounts: [`${privateKey}`, `${privateKey2}`],
     },
     anvil: {
