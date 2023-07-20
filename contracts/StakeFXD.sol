@@ -282,7 +282,9 @@ contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
         }
 
         stakes[claimAddress].totalRedeemed += earnings;
-        stakes[claimAddress].lastRedeemedAt = block.timestamp;
+        if(block.timestamp > expiryTime)
+            stakes[claimAddress].lastRedeemedAt = expiryTime;
+        else stakes[claimAddress].lastRedeemedAt = block.timestamp;
 
         totalRedeemed += earnings;
 
@@ -420,7 +422,10 @@ contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
         require(maxStakingDays_ > 0, "FXD: maxStakingDays cannot be 0");
         uint256 prevValue = maxStakingDays;
         maxStakingDays = maxStakingDays_;
-        emit StartTimeChanged(prevValue, maxStakingDays);
+        emit MaxStakingDaysChanged(prevValue, maxStakingDays);
+        prevValue = expiryTime;
+        expiryTime = startTime + (maxStakingDays * ONE_DAY);
+        emit ExpiryTimeChanged(prevValue, expiryTime);
     }
 
     function setMaxPoolAmount(uint256 maxPoolAmount_) public onlyOwner {
