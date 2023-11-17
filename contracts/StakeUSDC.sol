@@ -1,4 +1,3 @@
-
 // File: @openzeppelin/contracts/utils/Address.sol
 
 
@@ -920,12 +919,13 @@ contract StakeUSDC is Context, Pausable, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using AddressUtils for address;
 
-    uint256 private ONE_DAY = 86400; //86400
+    uint256 private ONE_DAY = 60; //86400
 
     IERC20 token;
+    uint256 public decimals;
     uint256 public totalStaked;
-    uint256 public minStakeAmount = 5000 * 10 ** 18;
-    uint256 public maxStakeAmount = 25000 * 10 ** 18;
+    uint256 public minStakeAmount = 5000;
+    uint256 public maxStakeAmount = 25000;
     uint256 public coolOff = ONE_DAY * 7;
     uint256 public interest;
     uint256 public totalRedeemed = 0;
@@ -933,10 +933,23 @@ contract StakeUSDC is Context, Pausable, Ownable, ReentrancyGuard {
     uint256 public startTime;
     uint256 public maxStakingDays;
     uint256 public expiryTime;
-    uint256 public maxPoolAmount = 200000 * 10 ** 18; //greater than or equal to maxstakeamount
+    uint256 public maxPoolAmount = 200000; //greater than or equal to maxstakeamount
     uint256 public pendingPoolAmount = maxPoolAmount;
-
     uint256 public interestPrecision = 100;
+
+    constructor(IERC20 token_, uint256 interest_, uint256 decimals_) {
+        require(
+            address(token_) != address(0),
+            "Token Address cannot be address 0"
+        );
+        token = token_;
+        interest = interest_;
+        decimals = decimals_;
+        minStakeAmount = minStakeAmount * 10 ** decimals;
+        maxStakeAmount = maxStakeAmount * 10 ** decimals;
+        maxPoolAmount = maxPoolAmount * 10 ** decimals;
+        pendingPoolAmount = maxPoolAmount;
+    }
 
     event Staked(address staker, uint256 amount);
 
@@ -1023,15 +1036,6 @@ contract StakeUSDC is Context, Pausable, Ownable, ReentrancyGuard {
         require(stakes[staker].unstaked == true, "USDC: not in unstake period");
         uint256 unstakeTenure = block.timestamp - stakes[staker].unstakedTime;
         return coolOff < unstakeTenure;
-    }
-
-    constructor(IERC20 token_, uint256 interest_) {
-        require(
-            address(token_) != address(0),
-            "Token Address cannot be address 0"
-        );
-        token = token_;
-        interest = interest_;
     }
 
     function transferToken(address to, uint256 amount) external onlyOwner {
