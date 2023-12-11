@@ -1286,7 +1286,7 @@ contract StakeFXD is Context, Pausable, Ownable, ReentrancyGuard {
                 maxPoolAmount - prevValue
             );
         else
-            pendingPoolAmount = pendingPoolAmount.add(
+            pendingPoolAmount = pendingPoolAmount.sub(
                 prevValue - maxPoolAmount
             );
         emit MaxPoolAmountChanged(prevValue, maxPoolAmount);
