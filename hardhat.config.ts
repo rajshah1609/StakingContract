@@ -15,7 +15,15 @@ const privateKey =
 const privateKey2 = process.env.PRIVATE_KEY_2;
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.17",
+  solidity: {
+    version: "0.8.17",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 1
+      }
+    }
+  },
   defaultNetwork: "hardhat",
   networks: {
     hardhat: {
@@ -33,15 +41,15 @@ const config: HardhatUserConfig = {
       accounts: [`${privateKey}`, `${privateKey2}`],
     },
     apothem: {
-      url: "https://apothem.xdcrpc.com	",
+      url: "https://apothem.xdcrpc.com",
       chainId: 51,
-      accounts: [`${privateKey}`, `${privateKey2}`],
+      accounts: privateKey ? [privateKey] : []
     },
-    anvil: {
-      url: `${process.env.ANVIL_FORKING_RPC}`,
-      chainId: parseInt(process.env.ANVIL_FORKING_CHAIN_ID as string),
-      accounts: [`${process.env.ANVIL_FORKING_RPC_ACCOUNT}`],
-    },
+    // anvil: {
+    //   url: `${process.env.ANVIL_FORKING_RPC}`,
+    //   chainId: parseInt(process.env.ANVIL_FORKING_CHAIN_ID as string),
+    //   accounts: [`${process.env.ANVIL_FORKING_RPC_ACCOUNT}`],
+    // },
   },
 
   namedAccounts: {
